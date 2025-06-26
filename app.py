@@ -36,44 +36,45 @@ with summary_tab:
     st.metric("Filtered Policies", len(filtered_df))
     st.dataframe(filtered_df.head(10), use_container_width=True)
 
-    if not filtered_df.empty:
+    if not filtered_df.empty and "dwelling limit" in filtered_df.columns:
         st.subheader("🏘️ Coverage A by ZIP Code")
-        try:
-            cov_col = [col for col in filtered_df.columns if "cov" in col and "liab" in col][0]
-            zip_summary = (
-                filtered_df.groupby("cust zip")[cov_col]
-                .sum()
-                .sort_values(ascending=False)
-                .reset_index()
-            )
-            st.bar_chart(zip_summary.set_index("cust zip"))
-        except IndexError:
-            st.error("Could not find a Coverage A column in your dataset.")
+        zip_summary = (
+            filtered_df.groupby("cust zip")["dwelling limit"]
+            .sum()
+            .sort_values(ascending=False)
+            .reset_index()
+        )
+        st.bar_chart(zip_summary.set_index("cust zip"))
+    else:
+        st.warning("Could not find 'Dwelling Limit' column in the dataset.")
 
 with map_tab:
     st.subheader("🗺️ Map of Filtered Policies")
-    map_df = filtered_df.dropna(subset=["latitude", "longitude"])
-    if not map_df.empty:
-        st.pydeck_chart(pdk.Deck(
-            initial_view_state=pdk.ViewState(
-                latitude=map_df["latitude"].mean(),
-                longitude=map_df["longitude"].mean(),
-                zoom=9,
-                pitch=40,
-            ),
-            layers=[
-                pdk.Layer(
-                    "ScatterplotLayer",
-                    data=map_df,
-                    get_position='[longitude, latitude]',
-                    get_radius=200,
-                    get_fill_color=[180, 0, 200, 140],
-                    pickable=True
-                )
-            ]
-        ))
+    if "latitude" in filtered_df.columns and "longitude" in filtered_df.columns:
+        map_df = filtered_df.dropna(subset=["latitude", "longitude"])
+        if not map_df.empty:
+            st.pydeck_chart(pdk.Deck(
+                initial_view_state=pdk.ViewState(
+                    latitude=map_df["latitude"].mean(),
+                    longitude=map_df["longitude"].mean(),
+                    zoom=9,
+                    pitch=40,
+                ),
+                layers=[
+                    pdk.Layer(
+                        "ScatterplotLayer",
+                        data=map_df,
+                        get_position='[longitude, latitude]',
+                        get_radius=200,
+                        get_fill_color=[180, 0, 200, 140],
+                        pickable=True
+                    )
+                ]
+            ))
+        else:
+            st.info("No valid coordinates found for map display.")
     else:
-        st.info("No valid coordinates to display on the map.")
+        st.warning("Latitude and Longitude columns not found in dataset.")
 
 with export_tab:
     st.subheader("📤 Download Filtered Data")
