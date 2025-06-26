@@ -38,13 +38,17 @@ with summary_tab:
 
     if not filtered_df.empty:
         st.subheader("🏘️ Coverage A by ZIP Code")
-        zip_summary = (
-            filtered_df.groupby("cust zip")["cova | auto liability"]
-            .sum()
-            .sort_values(ascending=False)
-            .reset_index()
-        )
-        st.bar_chart(zip_summary.set_index("cust zip"))
+        try:
+            cov_col = [col for col in filtered_df.columns if "cov" in col and "liab" in col][0]
+            zip_summary = (
+                filtered_df.groupby("cust zip")[cov_col]
+                .sum()
+                .sort_values(ascending=False)
+                .reset_index()
+            )
+            st.bar_chart(zip_summary.set_index("cust zip"))
+        except IndexError:
+            st.error("Could not find a Coverage A column in your dataset.")
 
 with map_tab:
     st.subheader("🗺️ Map of Filtered Policies")
