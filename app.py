@@ -15,7 +15,7 @@ df.columns = df.columns.str.strip().str.lower()
 st.sidebar.header("🔍 Filters")
 city_list = sorted(df["cust city"].dropna().unique())
 zip_list = sorted(df["cust zip"].dropna().unique())
-carrier_list = sorted(df["writing company"].dropna().unique())
+carrier_list = sorted(df["parent company"].dropna().unique())
 
 selected_cities = st.sidebar.multiselect("Select Cities", city_list, default=city_list)
 selected_zips = st.sidebar.multiselect("Select ZIP Codes", zip_list, default=zip_list)
@@ -25,7 +25,7 @@ selected_carriers = st.sidebar.multiselect("Select Carriers", carrier_list, defa
 filtered_df = df[
     df["cust city"].isin(selected_cities) &
     df["cust zip"].isin(selected_zips) &
-    df["writing company"].isin(selected_carriers)
+    df["parent company"].isin(selected_carriers)
 ]
 
 # Tabs
@@ -51,7 +51,8 @@ with summary_tab:
 with map_tab:
     st.subheader("🗺️ Coverage A Map")
 
-    if {"latitude", "longitude", "dwelling limit"}.issubset(filtered_df.columns):
+    required_cols = {"latitude", "longitude", "dwelling limit", "customer name", "parent company"}
+    if required_cols.issubset(filtered_df.columns):
         map_df = filtered_df.copy()
         map_df["latitude"] = pd.to_numeric(map_df["latitude"], errors="coerce")
         map_df["longitude"] = pd.to_numeric(map_df["longitude"], errors="coerce")
@@ -59,11 +60,9 @@ with map_tab:
         map_df = map_df.dropna(subset=["latitude", "longitude", "dwelling limit"])
 
         if not map_df.empty:
-            # Normalize CovA for color scaling
-            max_cov = map_df["dwelling limit"].max()
-            map_df["color_scale"] = map_df["dwelling limit"] / max_cov * 255
+            map_df["color_scale"] = map_df["dwelling limit"] / map_df["dwelling limit"].max() * 255
+            map_df = map_df.fillna("")
 
-            # Build layer with tooltip
             layer = pdk.Layer(
                 "ScatterplotLayer",
                 data=map_df,
@@ -81,7 +80,7 @@ with map_tab:
             )
 
             tooltip = {
-                "html": "<b>{customer name}</b><br/>Carrier: {writing company}<br/>CovA: ${dwelling limit}",
+                "html": "<b>{customer name}</b><br/>Carrier: {parent company}<br/>CovA: ${dwelling limit}",
                 "style": {"backgroundColor": "white", "color": "black"}
             }
 
@@ -89,7 +88,7 @@ with map_tab:
         else:
             st.info("No valid data to render the map.")
     else:
-        st.warning("Required columns (latitude, longitude, dwelling limit) not found.")
+        st.warning("One or more required fields are missing from the dataset.")
 
 with export_tab:
     st.subheader("📤 Download Filtered Data")
