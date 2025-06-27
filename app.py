@@ -52,11 +52,12 @@ with map_tab:
     st.subheader("🗺️ Map of Filtered Policies")
 
     if "latitude" in filtered_df.columns and "longitude" in filtered_df.columns:
-        # Ensure lat/lon are numeric and non-null
+        # Prepare minimal safe DataFrame
         map_df = filtered_df.copy()
         map_df["latitude"] = pd.to_numeric(map_df["latitude"], errors="coerce")
         map_df["longitude"] = pd.to_numeric(map_df["longitude"], errors="coerce")
         map_df = map_df.dropna(subset=["latitude", "longitude"])
+        map_df = map_df[["latitude", "longitude"]]
 
         if not map_df.empty:
             st.pydeck_chart(pdk.Deck(
