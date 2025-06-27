@@ -50,8 +50,14 @@ with summary_tab:
 
 with map_tab:
     st.subheader("🗺️ Map of Filtered Policies")
+
     if "latitude" in filtered_df.columns and "longitude" in filtered_df.columns:
-        map_df = filtered_df.dropna(subset=["latitude", "longitude"])
+        # Ensure lat/lon are numeric and non-null
+        map_df = filtered_df.copy()
+        map_df["latitude"] = pd.to_numeric(map_df["latitude"], errors="coerce")
+        map_df["longitude"] = pd.to_numeric(map_df["longitude"], errors="coerce")
+        map_df = map_df.dropna(subset=["latitude", "longitude"])
+
         if not map_df.empty:
             st.pydeck_chart(pdk.Deck(
                 initial_view_state=pdk.ViewState(
@@ -72,7 +78,7 @@ with map_tab:
                 ]
             ))
         else:
-            st.info("No valid coordinates found for map display.")
+            st.info("Map not displayed — no valid coordinates found.")
     else:
         st.warning("Latitude and Longitude columns not found in dataset.")
 
