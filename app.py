@@ -29,7 +29,7 @@ filtered_df = df[
 ]
 
 # Tabs
-summary_tab, map_tab, export_tab = st.tabs(["📊 Dashboard", "🗺️ Map View", "📤 Export"])
+summary_tab, map_tab, export_tab = st.tabs(["📊 Dashboard", "🗺️ Coverage A Map", "📤 Export"])
 
 with summary_tab:
     st.subheader("📊 Overview")
@@ -49,39 +49,47 @@ with summary_tab:
         st.warning("Could not find 'Dwelling Limit' column in the dataset.")
 
 with map_tab:
-    st.subheader("🗺️ Map of Filtered Policies")
+    st.subheader("🗺️ Coverage A Map")
 
-    if "latitude" in filtered_df.columns and "longitude" in filtered_df.columns:
-        # Prepare minimal safe DataFrame
+    if {"latitude", "longitude", "dwelling limit"}.issubset(filtered_df.columns):
         map_df = filtered_df.copy()
         map_df["latitude"] = pd.to_numeric(map_df["latitude"], errors="coerce")
         map_df["longitude"] = pd.to_numeric(map_df["longitude"], errors="coerce")
-        map_df = map_df.dropna(subset=["latitude", "longitude"])
-        map_df = map_df[["latitude", "longitude"]]
+        map_df["dwelling limit"] = pd.to_numeric(map_df["dwelling limit"], errors="coerce")
+        map_df = map_df.dropna(subset=["latitude", "longitude", "dwelling limit"])
 
         if not map_df.empty:
-            st.pydeck_chart(pdk.Deck(
-                initial_view_state=pdk.ViewState(
-                    latitude=map_df["latitude"].mean(),
-                    longitude=map_df["longitude"].mean(),
-                    zoom=9,
-                    pitch=40,
-                ),
-                layers=[
-                    pdk.Layer(
-                        "ScatterplotLayer",
-                        data=map_df,
-                        get_position='[longitude, latitude]',
-                        get_radius=200,
-                        get_fill_color=[180, 0, 200, 140],
-                        pickable=True
-                    )
-                ]
-            ))
+            # Normalize CovA for color scaling
+            max_cov = map_df["dwelling limit"].max()
+            map_df["color_scale"] = map_df["dwelling limit"] / max_cov * 255
+
+            # Build layer with tooltip
+            layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=map_df,
+                get_position='[longitude, latitude]',
+                get_radius=300,
+                get_fill_color='[255, 255 - color_scale, 100]',
+                pickable=True
+            )
+
+            view_state = pdk.ViewState(
+                latitude=map_df["latitude"].mean(),
+                longitude=map_df["longitude"].mean(),
+                zoom=9,
+                pitch=30
+            )
+
+            tooltip = {
+                "html": "<b>{customer name}</b><br/>Carrier: {writing company}<br/>CovA: ${dwelling limit}",
+                "style": {"backgroundColor": "white", "color": "black"}
+            }
+
+            st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=view_state, tooltip=tooltip))
         else:
-            st.info("Map not displayed — no valid coordinates found.")
+            st.info("No valid data to render the map.")
     else:
-        st.warning("Latitude and Longitude columns not found in dataset.")
+        st.warning("Required columns (latitude, longitude, dwelling limit) not found.")
 
 with export_tab:
     st.subheader("📤 Download Filtered Data")
